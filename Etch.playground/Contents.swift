@@ -3,23 +3,16 @@ import UIKit
 import PlaygroundSupport
 
 class MainViewController: UIViewController {
+    // MARK: Properties
 
-    private let collectionViewLayout: UICollectionViewFlowLayout = {
-        let layout = UICollectionViewFlowLayout()
-        layout.minimumLineSpacing = 0
-        layout.minimumInteritemSpacing = 0
-
-        return layout
-    }()
-
-    private lazy var collectionView: UICollectionView = UICollectionView(frame: .zero, collectionViewLayout: collectionViewLayout)
-
-    private let cellIdentifier = String(describing: GridCell.self)
     private let gridDimension: Int = 32
+    private var gridArray: [[UIColor]] {
+        Array(repeating: Array(repeating: .red, count: gridDimension), count: gridDimension)
+    }
 
-    private lazy var gridArray: [[UIColor]] = Array(repeating: Array(repeating: .red, count: gridDimension), count: gridDimension)
+    private lazy var gridView: GridView = GridView(gridArray: gridArray)
 
-    private var currentPosition: IndexPath = IndexPath(row: 5, section: 5)
+    // MARK: Life Cycle Methods
 
     override func loadView() {
         let view = UIView()
@@ -37,38 +30,77 @@ class MainViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
-        let width = collectionView.frame.width / CGFloat(gridDimension)
-        let height = collectionView.frame.height / CGFloat(gridDimension)
+        gridView.setUp()
+    }
 
-        /// Setting a static size instead of using the delegate.
-        /// The delegate was being called too many times for the number of cells and hurting playground performance.
-        collectionViewLayout.itemSize = CGSize(width: width, height: height)
-        // If you decide to resize later, make a method to update itemSize
-        collectionView.reloadData() //TODO: hide collection view before its reloaded so no flash
+    // MARK: Methods
 
+    private func buildUI() {
+        view.addSubview(gridView)
+
+        gridView.activateConstraints([
+            gridView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 5),
+            gridView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -5),
+            gridView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            gridView.heightAnchor.constraint(equalTo: gridView.widthAnchor)
+        ])
+    }
+}
+
+// MARK: - GridView
+
+class GridView: UICollectionView {
+    // MARK: Properties
+
+    private let flowLayout: UICollectionViewFlowLayout = {
+        let layout = UICollectionViewFlowLayout()
+        layout.minimumLineSpacing = 0
+        layout.minimumInteritemSpacing = 0
+
+        return layout
+    }()
+
+    private let cellIdentifier = String(describing: GridCell.self)
+
+    private var currentPosition: IndexPath = IndexPath(row: 5, section: 5)
+
+    private var gridArray: [[UIColor]]
+
+    // MARK: Initialization
+
+    init(gridArray: [[UIColor]]) {
+        self.gridArray = gridArray
+        super.init(frame: .zero, collectionViewLayout: flowLayout)
+
+        register(GridCell.self, forCellWithReuseIdentifier: cellIdentifier)
+        dataSource = self
+        delegate = self
+        collectionViewLayout = flowLayout
+        backgroundColor = .clear
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Public Methods
+
+    /// Call this method when the view has loaded to get the correct frame when using constraints.
+    func setUp() {
+        let width = frame.width / CGFloat(gridArray.count)
+        let height = frame.height / CGFloat(gridArray.count)
+
+        flowLayout.itemSize = CGSize(width: width, height: height)
+
+        // TODO: Allow user to select starting cell
         selectStartingCell()
     }
 
-    private func buildUI() {
-        collectionView.register(GridCell.self, forCellWithReuseIdentifier: cellIdentifier)
-        collectionView.dataSource = self
-        collectionView.delegate = self
-        collectionView.backgroundColor = .clear
-
-        view.addSubview(collectionView)
-
-        collectionView.activateConstraints([
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 5),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -5),
-            collectionView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            collectionView.heightAnchor.constraint(equalTo: collectionView.widthAnchor)
-        ])
-    }
+    // MARK: Private Methods
 
     private func selectStartingCell() {
         let startingIndex = currentPosition
         gridArray[startingIndex.row][startingIndex.section] = .blue
-        collectionView.reloadItems(at: [startingIndex])
     }
 
     private func isSurroundingIndex(_ indexPath: IndexPath) -> Bool {
@@ -81,13 +113,16 @@ class MainViewController: UIViewController {
     }
 }
 
-extension MainViewController: UICollectionViewDataSource {
+// MARK: - GridView Data Source
+
+extension GridView: UICollectionViewDataSource {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        gridDimension
+        gridArray.count
     }
 
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        gridDimension
+        /// Dimensions of 2D array will always be equal so using columns again is sufficient.
+        gridArray.count
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -101,7 +136,9 @@ extension MainViewController: UICollectionViewDataSource {
     }
 }
 
-extension MainViewController: UICollectionViewDelegate {
+// MARK: - GridView Delegate
+
+extension GridView: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         guard isSurroundingIndex(indexPath) else { return }
 
@@ -111,6 +148,8 @@ extension MainViewController: UICollectionViewDelegate {
         currentPosition = indexPath
     }
 }
+
+// MARK: - GridCell
 
 class GridCell: UICollectionViewCell {
 
@@ -122,11 +161,6 @@ class GridCell: UICollectionViewCell {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-
-    // TODO: If needed
-//    override func prepareForReuse() {
-//        super.prepareForReuse()
-//    }
 
     private func buildUI() {
         layer.borderWidth = 0.5
