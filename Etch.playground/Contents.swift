@@ -30,14 +30,14 @@ class MainViewController: UIViewController {
 
     private let gridDimension: Int = 32
     private var gridArray: [[UIColor]] {
-        Array(repeating: Array(repeating: .red, count: gridDimension), count: gridDimension)
+        Array(repeating: Array(repeating: Colours.offWhite, count: gridDimension), count: gridDimension)
     }
 
     // MARK: Life Cycle Methods
 
     override func loadView() {
         let view = UIView()
-        view.backgroundColor = .white
+        view.backgroundColor = Colours.pink
 
         self.view = view
     }
@@ -58,6 +58,8 @@ class MainViewController: UIViewController {
     // MARK: Methods
 
     private func buildUI() {
+        controlView.delegate = self
+
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(gridView)
         stackView.addArrangedSubview(controlView)
@@ -81,6 +83,26 @@ class MainViewController: UIViewController {
         controlView.activateConstraints([
             controlView.heightAnchor.constraint(equalToConstant: 112)
         ])
+    }
+}
+
+// MARK: - MainViewController ControlDelegate
+
+extension MainViewController: ControlDelegate {
+    func didPressMoveUp() {
+        gridView.moveUp()
+    }
+
+    func didPressMoveRight() {
+        gridView.moveRight()
+    }
+
+    func didPressMoveDown() {
+        gridView.moveDown()
+    }
+
+    func didPressMoveLeft() {
+        gridView.moveLeft()
     }
 }
 
@@ -130,6 +152,42 @@ class GridView: UICollectionView {
         flowLayout.itemSize = CGSize(width: width, height: height)
     }
 
+    func moveUp() {
+        guard let currentPos = currentPosition else { return }
+        let above = currentPos.above
+
+        if isValidIndex(above) {
+            selectCell(above)
+        }
+    }
+
+    func moveRight() {
+        guard let currentPos = currentPosition else { return }
+        let right = currentPos.right
+
+        if isValidIndex(right) {
+            selectCell(right)
+        }
+    }
+
+    func moveDown() {
+        guard let currentPos = currentPosition else { return }
+        let below = currentPos.below
+
+        if isValidIndex(below) {
+            selectCell(below)
+        }
+    }
+
+    func moveLeft() {
+        guard let currentPos = currentPosition else { return }
+        let left = currentPos.left
+
+        if isValidIndex(left) {
+            selectCell(left)
+        }
+    }
+
     // MARK: Private Methods
 
     private func isSurroundingIndex(_ indexPath: IndexPath) -> Bool {
@@ -141,6 +199,15 @@ class GridView: UICollectionView {
         let isLeft: Bool = indexPath == currentPos.left
 
         return isAbove || isRight || isBelow || isLeft
+    }
+
+    private func isValidIndex(_ indexPath: IndexPath) -> Bool {
+        let topValid: Bool = indexPath.section >= 0
+        let rightValid: Bool = indexPath.row < gridArray.count
+        let bottomValid: Bool = indexPath.section < gridArray.count
+        let leftValid: Bool = indexPath.row >= 0
+
+        return topValid && rightValid && bottomValid && leftValid
     }
 
     private func selectCell(_ indexPath: IndexPath) {
@@ -278,7 +345,7 @@ final class ControlButton: UIButton {
     // MARK: Methods
 
     private func buildUI() {
-        backgroundColor = .gray
+        backgroundColor = Colours.salmon
         layer.cornerRadius = 5
         let image = UIImage(systemName: direction.symbol)
         setImage(image, for: .normal)
@@ -351,7 +418,7 @@ class ControlView: UIView {
     // MARK: Public Methods
 
     func setColour(to colour: UIColor) {
-        // TODO: Change middle colour depending on colour picker
+        colourView.backgroundColor = colour
     }
 
     // MARK: Private Methods
@@ -387,27 +454,32 @@ class ControlView: UIView {
 
     @objc
     private func moveUpPressed() {
-        print("up")
         delegate?.didPressMoveUp()
     }
 
     @objc
     private func moveRightPressed() {
-        print("right")
         delegate?.didPressMoveRight()
     }
 
     @objc
     private func moveDownPressed() {
-        print("down")
         delegate?.didPressMoveDown()
     }
 
     @objc
     private func moveLeftPressed() {
-        print("left")
         delegate?.didPressMoveLeft()
     }
+}
+
+// MARK: - Colours
+
+struct Colours {
+    static let offWhite: UIColor = UIColor(red: 236 / 255, green: 252 / 255, blue: 246 / 255, alpha: 1)
+    static let pink: UIColor = UIColor(red: 250 / 255, green: 228 / 255, blue: 230 / 255, alpha: 1)
+    static let salmon: UIColor = UIColor(red: 255 / 255, green: 205 / 255, blue: 182 / 255, alpha: 1)
+    static let brown: UIColor = UIColor(red: 35 / 255, green: 26 / 255, blue: 19 / 255, alpha: 1)
 }
 
 // MARK: - Utils
@@ -434,14 +506,6 @@ extension UIView {
     func activateConstraints(_ constraints: [NSLayoutConstraint]) {
         translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate(constraints)
-    }
-
-    func pinEdges(to view: UIView) {
-        translatesAutoresizingMaskIntoConstraints = false
-        leadingAnchor.constraint(equalTo: view.leadingAnchor).isActive = true
-        trailingAnchor.constraint(equalTo: view.trailingAnchor).isActive = true
-        topAnchor.constraint(equalTo: view.topAnchor).isActive = true
-        bottomAnchor.constraint(equalTo: view.bottomAnchor).isActive = true
     }
 }
 
