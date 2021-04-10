@@ -39,8 +39,8 @@ class MainViewController: UIViewController {
         view.addSubview(gridView)
 
         gridView.activateConstraints([
-            gridView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 5),
-            gridView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -5),
+            gridView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            gridView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
             gridView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             gridView.heightAnchor.constraint(equalTo: gridView.widthAnchor)
         ])
@@ -62,7 +62,7 @@ class GridView: UICollectionView {
 
     private let cellIdentifier = String(describing: GridCell.self)
 
-    private var currentPosition: IndexPath = IndexPath(row: 5, section: 5)
+    private var currentPosition: IndexPath?
 
     private var gridArray: [[UIColor]]
 
@@ -91,26 +91,73 @@ class GridView: UICollectionView {
         let height = frame.height / CGFloat(gridArray.count)
 
         flowLayout.itemSize = CGSize(width: width, height: height)
-
-        // TODO: Allow user to select starting cell
-        selectStartingCell()
     }
 
     // MARK: Private Methods
 
-    private func selectStartingCell() {
-        let startingIndex = currentPosition
-        gridArray[startingIndex.row][startingIndex.section] = .blue
-    }
-
     private func isSurroundingIndex(_ indexPath: IndexPath) -> Bool {
-        let isAbove: Bool = (indexPath.section == (currentPosition.section - 1) && indexPath.row == currentPosition.row)
-        let isRight: Bool = (indexPath.row == (currentPosition.row + 1) && indexPath.section == currentPosition.section)
-        let isBelow: Bool = (indexPath.section == (currentPosition.section + 1) && indexPath.row == currentPosition.row)
-        let isLeft: Bool = (indexPath.row == (currentPosition.row - 1) && indexPath.section == currentPosition.section)
+        guard let currentPos = currentPosition else { return false }
+
+        let isAbove: Bool = indexPath == currentPos.above
+        let isRight: Bool = indexPath == currentPos.right
+        let isBelow: Bool = indexPath == currentPos.below
+        let isLeft: Bool = indexPath == currentPos.left
 
         return isAbove || isRight || isBelow || isLeft
     }
+
+    private func selectCell(_ indexPath: IndexPath) {
+        guard let currentPos = currentPosition else { return }
+
+        gridArray[indexPath.row][indexPath.section] = .blue
+        reloadItems(at: [indexPath])
+
+        if let currentCell = cellForItem(at: currentPos) as? GridCell,
+           let newCell = cellForItem(at: indexPath) as? GridCell {
+            currentCell.stopBlinking()
+            newCell.startBlinking()
+        }
+
+//        highlightSurroundingCells(to: currentPos, selected: true)
+//        highlightSurroundingCells(to: indexPath, selected: false)
+
+        currentPosition = indexPath
+    }
+
+//    private func highlightSurroundingCells(to position: IndexPath, selected: Bool) {
+//        var indexPaths: [IndexPath] = [IndexPath]()
+//
+//        let above = position.above
+//        if above.section > 0 {
+//            indexPaths.append(above)
+//        }
+//
+//        let right = position.right
+//        if right.row < gridArray.count {
+//            indexPaths.append(right)
+//        }
+//
+//        let below = position.below
+//        if below.section < gridArray.count {
+//            indexPaths.append(below)
+//        }
+//
+//        let left = position.left
+//        if left.row > 0 {
+//            indexPaths.append(left)
+//        }
+//
+//        indexPaths.forEach({ index in
+//            if let cell = cellForItem(at: index) as? GridCell {
+//                if selected {
+//                    cell.startBlinking()
+//                } else {
+//                    cell.stopBlinking()
+//                }
+//            }
+//        })
+//        //reloadItems(at: indexPaths)
+//    }
 }
 
 // MARK: - GridView Data Source
@@ -140,18 +187,23 @@ extension GridView: UICollectionViewDataSource {
 
 extension GridView: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        /// If current position is nil, set it to the tapped cell.
+        guard currentPosition != nil else {
+            currentPosition = indexPath
+            selectCell(indexPath)
+            return
+        }
+
         guard isSurroundingIndex(indexPath) else { return }
 
-        gridArray[indexPath.row][indexPath.section] = .blue
-        collectionView.reloadItems(at: [indexPath])
-
-        currentPosition = indexPath
+        selectCell(indexPath)
     }
 }
 
 // MARK: - GridCell
 
 class GridCell: UICollectionViewCell {
+    // MARK: Initialization
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -162,6 +214,26 @@ class GridCell: UICollectionViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
+    // MARK: Public Methods
+
+    func startBlinking() {
+        alpha = 0.5
+        UIView.animate(withDuration: 0.5,
+                       delay: 0,
+                       options: [.curveEaseInOut, .autoreverse, .repeat, .allowUserInteraction]) {
+            self.alpha = 1
+        } completion: { _ in
+            self.alpha = 0.5
+        }
+    }
+
+    func stopBlinking() {
+        layer.removeAllAnimations()
+        alpha = 1
+    }
+
+    // MARK: Private Methods
+
     private func buildUI() {
         layer.borderWidth = 0.5
         layer.borderColor = UIColor.black.cgColor
@@ -170,6 +242,24 @@ class GridCell: UICollectionViewCell {
 }
 
 // MARK: - Utils
+
+extension IndexPath {
+    var above: IndexPath {
+        IndexPath(row: row, section: section - 1)
+    }
+
+    var right: IndexPath {
+        IndexPath(row: row + 1, section: section)
+    }
+
+    var below: IndexPath {
+        IndexPath(row: row, section: section + 1)
+    }
+
+    var left: IndexPath {
+        IndexPath(row: row - 1, section: section)
+    }
+}
 
 extension UIView {
     func activateConstraints(_ constraints: [NSLayoutConstraint]) {
