@@ -118,46 +118,8 @@ class GridView: UICollectionView {
             newCell.startBlinking()
         }
 
-//        highlightSurroundingCells(to: currentPos, selected: true)
-//        highlightSurroundingCells(to: indexPath, selected: false)
-
         currentPosition = indexPath
     }
-
-//    private func highlightSurroundingCells(to position: IndexPath, selected: Bool) {
-//        var indexPaths: [IndexPath] = [IndexPath]()
-//
-//        let above = position.above
-//        if above.section > 0 {
-//            indexPaths.append(above)
-//        }
-//
-//        let right = position.right
-//        if right.row < gridArray.count {
-//            indexPaths.append(right)
-//        }
-//
-//        let below = position.below
-//        if below.section < gridArray.count {
-//            indexPaths.append(below)
-//        }
-//
-//        let left = position.left
-//        if left.row > 0 {
-//            indexPaths.append(left)
-//        }
-//
-//        indexPaths.forEach({ index in
-//            if let cell = cellForItem(at: index) as? GridCell {
-//                if selected {
-//                    cell.startBlinking()
-//                } else {
-//                    cell.stopBlinking()
-//                }
-//            }
-//        })
-//        //reloadItems(at: indexPaths)
-//    }
 }
 
 // MARK: - GridView Data Source
