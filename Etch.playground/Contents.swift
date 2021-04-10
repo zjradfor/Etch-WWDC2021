@@ -3,14 +3,33 @@ import UIKit
 import PlaygroundSupport
 
 class MainViewController: UIViewController {
+    // MARK: UI Elements
+
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Etch"
+        label.font = .preferredFont(forTextStyle: .largeTitle)
+
+        return label
+    }()
+
+    private lazy var gridView: GridView = GridView(gridArray: gridArray)
+
+    private let stackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.spacing = 16
+        stackView.distribution = .equalSpacing
+
+        return stackView
+    }()
+
     // MARK: Properties
 
     private let gridDimension: Int = 32
     private var gridArray: [[UIColor]] {
         Array(repeating: Array(repeating: .red, count: gridDimension), count: gridDimension)
     }
-
-    private lazy var gridView: GridView = GridView(gridArray: gridArray)
 
     // MARK: Life Cycle Methods
 
@@ -36,12 +55,22 @@ class MainViewController: UIViewController {
     // MARK: Methods
 
     private func buildUI() {
-        view.addSubview(gridView)
+        view.addSubview(stackView)
+
+        stackView.addArrangedSubview(titleLabel)
+        stackView.addArrangedSubview(gridView)
+
+        let button = ControlButton(direction: .up)
+        stackView.addArrangedSubview(button)
+
+        stackView.activateConstraints([
+            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            stackView.topAnchor.constraint(equalTo: view.topAnchor, constant: 16)
+        ])
 
         gridView.activateConstraints([
-            gridView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
-            gridView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
-            gridView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            gridView.widthAnchor.constraint(equalTo: stackView.widthAnchor),
             gridView.heightAnchor.constraint(equalTo: gridView.widthAnchor)
         ])
     }
@@ -164,7 +193,7 @@ extension GridView: UICollectionViewDelegate {
 
 // MARK: - GridCell
 
-class GridCell: UICollectionViewCell {
+final class GridCell: UICollectionViewCell {
     // MARK: Initialization
 
     override init(frame: CGRect) {
@@ -201,6 +230,56 @@ class GridCell: UICollectionViewCell {
         layer.borderColor = UIColor.black.cgColor
         layer.cornerRadius = 2
     }
+}
+
+// MARK: ControlButton
+
+final class ControlButton: UIButton {
+    // MARK: Types
+
+    enum Direction {
+        case up, right, down, left
+
+        var symbol: String {
+            switch self {
+            case .up: return "arrowtriangle.up.fill"
+            case .right: return "arrowtriangle.right.fill"
+            case .down: return "arrowtriangle.down.fill"
+            case .left: return "arrowtriangle.left.fill"
+            }
+        }
+    }
+
+    // MARK: Properties
+
+    private let direction: Direction
+
+    // MARK: Initialization
+
+    init(direction: Direction) {
+        self.direction = direction
+        super.init(frame: .zero)
+
+        buildUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Methods
+
+    private func buildUI() {
+        backgroundColor = .gray
+        layer.cornerRadius = 5
+        let image = UIImage(systemName: direction.symbol)
+        setImage(image, for: .normal)
+    }
+}
+
+class ControlView: UIView {
+
+    // TODO: Create view with 4 directions and colour fill
 }
 
 // MARK: - Utils
