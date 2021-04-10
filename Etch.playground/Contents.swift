@@ -15,6 +15,8 @@ class MainViewController: UIViewController {
 
     private lazy var gridView: GridView = GridView(gridArray: gridArray)
 
+    private let controlView: ControlView = ControlView(frame: .zero)
+
     private let stackView: UIStackView = {
         let stackView = UIStackView()
         stackView.axis = .vertical
@@ -44,6 +46,7 @@ class MainViewController: UIViewController {
         super.viewWillAppear(animated)
 
         buildUI()
+        applyConstraints()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -55,14 +58,14 @@ class MainViewController: UIViewController {
     // MARK: Methods
 
     private func buildUI() {
-        view.addSubview(stackView)
-
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(gridView)
+        stackView.addArrangedSubview(controlView)
 
-        let button = ControlButton(direction: .up)
-        stackView.addArrangedSubview(button)
+        view.addSubview(stackView)
+    }
 
+    private func applyConstraints() {
         stackView.activateConstraints([
             stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
             stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
@@ -72,6 +75,11 @@ class MainViewController: UIViewController {
         gridView.activateConstraints([
             gridView.widthAnchor.constraint(equalTo: stackView.widthAnchor),
             gridView.heightAnchor.constraint(equalTo: gridView.widthAnchor)
+        ])
+
+        /// Frame height was not being set properly so using constant.
+        controlView.activateConstraints([
+            controlView.heightAnchor.constraint(equalToConstant: 112)
         ])
     }
 }
@@ -277,9 +285,129 @@ final class ControlButton: UIButton {
     }
 }
 
-class ControlView: UIView {
+// MARK: - ControlDelegate
 
-    // TODO: Create view with 4 directions and colour fill
+protocol ControlDelegate: AnyObject {
+    func didPressMoveUp()
+    func didPressMoveRight()
+    func didPressMoveDown()
+    func didPressMoveLeft()
+}
+
+// MARK: ControlView
+
+class ControlView: UIView {
+    // MARK: UI Elements
+
+    private let upButton: ControlButton = ControlButton(direction: .up)
+    private let rightButton: ControlButton = ControlButton(direction: .right)
+    private let downButton: ControlButton = ControlButton(direction: .down)
+    private let leftButton: ControlButton = ControlButton(direction: .left)
+
+    private let colourView: UIView = {
+        let view = UIView()
+        view.layer.cornerRadius = 5
+        view.backgroundColor = .red
+
+        return view
+    }()
+
+    private let horizStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.spacing = 8
+        stackView.distribution = .fillProportionally
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+
+        return stackView
+    }()
+
+    private let vertStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.spacing = 8
+        stackView.alignment = .center
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+
+        return stackView
+    }()
+
+    // MARK: Properties
+
+    weak var delegate: ControlDelegate?
+
+    // MARK: Initialization
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        buildUI()
+        applyConstraints()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Public Methods
+
+    func setColour(to colour: UIColor) {
+        // TODO: Change middle colour depending on colour picker
+    }
+
+    // MARK: Private Methods
+
+    private func buildUI() {
+        upButton.addTarget(self, action: #selector(moveUpPressed), for: .touchUpInside)
+        rightButton.addTarget(self, action: #selector(moveRightPressed), for: .touchUpInside)
+        downButton.addTarget(self, action: #selector(moveDownPressed), for: .touchUpInside)
+        leftButton.addTarget(self, action: #selector(moveLeftPressed), for: .touchUpInside)
+
+        vertStackView.addArrangedSubview(upButton)
+
+        horizStackView.addArrangedSubview(leftButton)
+        horizStackView.addArrangedSubview(colourView)
+        horizStackView.addArrangedSubview(rightButton)
+
+        vertStackView.addArrangedSubview(horizStackView)
+        vertStackView.addArrangedSubview(downButton)
+
+        addSubview(vertStackView)
+    }
+
+    private func applyConstraints() {
+        [upButton, rightButton, downButton, leftButton, colourView].forEach { view in
+            view.activateConstraints([
+                view.widthAnchor.constraint(equalToConstant: 32),
+                view.heightAnchor.constraint(equalToConstant: 32)
+            ])
+        }
+    }
+
+    // MARK: Actions
+
+    @objc
+    private func moveUpPressed() {
+        print("up")
+        delegate?.didPressMoveUp()
+    }
+
+    @objc
+    private func moveRightPressed() {
+        print("right")
+        delegate?.didPressMoveRight()
+    }
+
+    @objc
+    private func moveDownPressed() {
+        print("down")
+        delegate?.didPressMoveDown()
+    }
+
+    @objc
+    private func moveLeftPressed() {
+        print("left")
+        delegate?.didPressMoveLeft()
+    }
 }
 
 // MARK: - Utils
