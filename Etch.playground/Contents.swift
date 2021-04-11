@@ -154,38 +154,26 @@ class GridView: UICollectionView {
 
     func moveUp() {
         guard let currentPos = currentPosition else { return }
-        let above = currentPos.above
 
-        if isValidIndex(above) {
-            selectCell(above)
-        }
+        selectCells([currentPos.above])
     }
 
     func moveRight() {
         guard let currentPos = currentPosition else { return }
-        let right = currentPos.right
 
-        if isValidIndex(right) {
-            selectCell(right)
-        }
+        selectCells([currentPos.right])
     }
 
     func moveDown() {
         guard let currentPos = currentPosition else { return }
-        let below = currentPos.below
 
-        if isValidIndex(below) {
-            selectCell(below)
-        }
+        selectCells([currentPos.below])
     }
 
     func moveLeft() {
         guard let currentPos = currentPosition else { return }
-        let left = currentPos.left
 
-        if isValidIndex(left) {
-            selectCell(left)
-        }
+        selectCells([currentPos.left])
     }
 
     // MARK: Private Methods
@@ -210,19 +198,26 @@ class GridView: UICollectionView {
         return topValid && rightValid && bottomValid && leftValid
     }
 
-    private func selectCell(_ indexPath: IndexPath) {
+    private func selectCells(_ indexPaths: [IndexPath]) {
         guard let currentPos = currentPosition else { return }
 
-        gridArray[indexPath.row][indexPath.section] = .blue
-        reloadItems(at: [indexPath])
+        /// Only use indexPaths within bounds of grid
+        let validIndexPaths: [IndexPath] = indexPaths.filter({ isValidIndex($0) })
+
+        for indexPath in validIndexPaths {
+            gridArray[indexPath.row][indexPath.section] = .blue
+        }
+        reloadItems(at: validIndexPaths)
+
+        guard let lastIndex = validIndexPaths.last else { return }
 
         if let currentCell = cellForItem(at: currentPos) as? GridCell,
-           let newCell = cellForItem(at: indexPath) as? GridCell {
+           let newCell = cellForItem(at: lastIndex) as? GridCell {
             currentCell.stopBlinking()
             newCell.startBlinking()
         }
 
-        currentPosition = indexPath
+        currentPosition = lastIndex
     }
 }
 
@@ -256,13 +251,13 @@ extension GridView: UICollectionViewDelegate {
         /// If current position is nil, set it to the tapped cell.
         guard currentPosition != nil else {
             currentPosition = indexPath
-            selectCell(indexPath)
+            selectCells([indexPath])
             return
         }
 
         guard isSurroundingIndex(indexPath) else { return }
 
-        selectCell(indexPath)
+        selectCells([indexPath])
     }
 }
 
