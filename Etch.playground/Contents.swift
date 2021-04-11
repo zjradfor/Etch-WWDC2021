@@ -15,7 +15,7 @@ class MainViewController: UIViewController {
 
     private lazy var gridView: GridView = GridView(gridArray: gridArray)
     private let controlView: ControlView = ControlView(frame: .zero)
-    private let colourPickerView: ColourPickerView = ColourPickerView()
+    private let colourPickerView: ColourPickerView = ColourPickerView(frame: .zero)
 
     private let stackView: UIStackView = {
         let stackView = UIStackView()
@@ -87,8 +87,7 @@ class MainViewController: UIViewController {
         ])
 
         colourPickerView.activateConstraints([
-            colourPickerView.widthAnchor.constraint(equalTo: stackView.widthAnchor),
-            colourPickerView.heightAnchor.constraint(equalToConstant: 40)
+            colourPickerView.widthAnchor.constraint(equalTo: stackView.widthAnchor)
         ])
     }
 }
@@ -328,8 +327,8 @@ class GridCell: UICollectionViewCell {
 class ControlButton: UIButton {
     // MARK: Types
 
-    enum Direction {
-        case up, right, down, left
+    enum ButtonType {
+        case up, right, down, left, palette, trash, help, save, gallery
 
         var symbol: String {
             switch self {
@@ -337,18 +336,23 @@ class ControlButton: UIButton {
             case .right: return "arrowtriangle.right.fill"
             case .down: return "arrowtriangle.down.fill"
             case .left: return "arrowtriangle.left.fill"
+            case .palette: return "paintpalette.fill"
+            case .trash: return "trash.fill"
+            case .help: return "questionmark"
+            case .save: return "archivebox.fill"
+            case .gallery: return "square.grid.3x3.fill"
             }
         }
     }
 
     // MARK: Properties
 
-    private let direction: Direction
+    private let type: ButtonType
 
     // MARK: Initialization
 
-    init(direction: Direction) {
-        self.direction = direction
+    init(type: ButtonType) {
+        self.type = type
         super.init(frame: .zero)
 
         buildUI()
@@ -363,7 +367,7 @@ class ControlButton: UIButton {
     private func buildUI() {
         backgroundColor = Colours.brandSalmon
         layer.cornerRadius = 5
-        let image = UIImage(systemName: direction.symbol)
+        let image = UIImage(systemName: type.symbol)
         setImage(image, for: .normal)
 
         tintColor = Colours.brandBrown
@@ -384,10 +388,10 @@ protocol ControlDelegate: AnyObject {
 class ControlView: UIView {
     // MARK: UI Elements
 
-    private let upButton: ControlButton = ControlButton(direction: .up)
-    private let rightButton: ControlButton = ControlButton(direction: .right)
-    private let downButton: ControlButton = ControlButton(direction: .down)
-    private let leftButton: ControlButton = ControlButton(direction: .left)
+    private let upButton: ControlButton = ControlButton(type: .up)
+    private let rightButton: ControlButton = ControlButton(type: .right)
+    private let downButton: ControlButton = ControlButton(type: .down)
+    private let leftButton: ControlButton = ControlButton(type: .left)
 
     private let colourView: UIView = {
         let view = UIView()
@@ -499,8 +503,10 @@ protocol ColourPickerDelegate: AnyObject {
 
 // MARK: - ColourPickerView
 
-class ColourPickerView: UICollectionView {
-    // MARK: Properties
+class ColourPickerView: UIStackView {
+    // MARK: UI Elements
+
+    private let paletteButton: ControlButton = ControlButton(type: .palette)
 
     private let flowLayout: UICollectionViewFlowLayout = {
         let layout = UICollectionViewFlowLayout()
@@ -511,6 +517,19 @@ class ColourPickerView: UICollectionView {
 
         return layout
     }()
+
+    private lazy var collectionView: UICollectionView = {
+        let view = UICollectionView(frame: .zero, collectionViewLayout: flowLayout)
+        view.register(ColourCell.self, forCellWithReuseIdentifier: cellIdentifier)
+        view.dataSource = self
+        view.delegate = self
+        view.backgroundColor = .clear
+        view.showsHorizontalScrollIndicator = false
+
+        return view
+    }()
+
+    // MARK: Properties
 
     private let cellIdentifier = String(describing: ColourCell.self)
     private let colourArray: [UIColor] = [Colours.black, Colours.blue, Colours.red, Colours.tan,
@@ -523,19 +542,39 @@ class ColourPickerView: UICollectionView {
 
     // MARK: Initialization
 
-    init() {
-        super.init(frame: .zero, collectionViewLayout: flowLayout)
+    override init(frame: CGRect) {
+        super.init(frame: frame)
 
-        register(ColourCell.self, forCellWithReuseIdentifier: cellIdentifier)
-        dataSource = self
-        delegate = self
-        collectionViewLayout = flowLayout
-        backgroundColor = .clear
-        showsHorizontalScrollIndicator = false
+        buildUI()
+        applyConstraints()
     }
 
-    required init?(coder: NSCoder) {
+    required init(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Methods
+
+    private func buildUI() {
+        axis = .horizontal
+        spacing = 8
+
+        paletteButton.addTarget(self, action: #selector(palettePressed), for: .touchUpInside)
+
+        addArrangedSubview(paletteButton)
+        addArrangedSubview(collectionView)
+    }
+
+    private func applyConstraints() {
+        paletteButton.activateConstraints([
+            paletteButton.widthAnchor.constraint(equalToConstant: 32),
+            paletteButton.heightAnchor.constraint(equalToConstant: 32)
+        ])
+    }
+
+    @objc
+    private func palettePressed() {
+        print(paletteButton.frame)
     }
 }
 
@@ -564,7 +603,7 @@ extension ColourPickerView: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         colourDelegate?.didSelectColour(colourArray[indexPath.row])
         selectedIndex = indexPath
-        reloadItems(at: indexPathsForVisibleItems)
+        collectionView.reloadItems(at: collectionView.indexPathsForVisibleItems)
     }
 }
 
