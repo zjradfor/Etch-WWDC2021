@@ -14,8 +14,8 @@ class MainViewController: UIViewController {
     }()
 
     private lazy var gridView: GridView = GridView(gridArray: gridArray)
-
     private let controlView: ControlView = ControlView(frame: .zero)
+    private let colourPickerView: ColourPickerView = ColourPickerView()
 
     private let stackView: UIStackView = {
         let stackView = UIStackView()
@@ -30,14 +30,14 @@ class MainViewController: UIViewController {
 
     private let gridDimension: Int = 32
     private var gridArray: [[UIColor]] {
-        Array(repeating: Array(repeating: Colours.offWhite, count: gridDimension), count: gridDimension)
+        Array(repeating: Array(repeating: Colours.brandWhite, count: gridDimension), count: gridDimension)
     }
 
     // MARK: Life Cycle Methods
 
     override func loadView() {
         let view = UIView()
-        view.backgroundColor = Colours.pink
+        view.backgroundColor = Colours.brandPink
 
         self.view = view
     }
@@ -59,10 +59,12 @@ class MainViewController: UIViewController {
 
     private func buildUI() {
         controlView.delegate = self
+        colourPickerView.colourDelegate = self
 
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(gridView)
         stackView.addArrangedSubview(controlView)
+        stackView.addArrangedSubview(colourPickerView)
 
         view.addSubview(stackView)
     }
@@ -82,6 +84,11 @@ class MainViewController: UIViewController {
         /// Frame height was not being set properly so using constant.
         controlView.activateConstraints([
             controlView.heightAnchor.constraint(equalToConstant: 112)
+        ])
+
+        colourPickerView.activateConstraints([
+            colourPickerView.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+            colourPickerView.heightAnchor.constraint(equalToConstant: 40)
         ])
     }
 }
@@ -106,6 +113,15 @@ extension MainViewController: ControlDelegate {
     }
 }
 
+// MARK: - MainViewController ColourPickerDelegate
+
+extension MainViewController: ColourPickerDelegate {
+    func didSelectColour(_ colour: UIColor) {
+        controlView.setColour(to: colour)
+        gridView.selectedColour = colour
+    }
+}
+
 // MARK: - GridView
 
 class GridView: UICollectionView {
@@ -120,10 +136,15 @@ class GridView: UICollectionView {
     }()
 
     private let cellIdentifier = String(describing: GridCell.self)
-
     private var currentPosition: IndexPath?
-
     private var gridArray: [[UIColor]]
+    var selectedColour: UIColor = Colours.black {
+        didSet {
+            /// Change the colour of cell you are currently on.
+            guard let currentPos = currentPosition else { return }
+            selectCells([currentPos])
+        }
+    }
 
     // MARK: Initialization
 
@@ -205,7 +226,7 @@ class GridView: UICollectionView {
         let validIndexPaths: [IndexPath] = indexPaths.filter({ isValidIndex($0) })
 
         for indexPath in validIndexPaths {
-            gridArray[indexPath.row][indexPath.section] = .blue
+            gridArray[indexPath.row][indexPath.section] = selectedColour
         }
         reloadItems(at: validIndexPaths)
 
@@ -263,7 +284,7 @@ extension GridView: UICollectionViewDelegate {
 
 // MARK: - GridCell
 
-final class GridCell: UICollectionViewCell {
+class GridCell: UICollectionViewCell {
     // MARK: Initialization
 
     override init(frame: CGRect) {
@@ -302,9 +323,9 @@ final class GridCell: UICollectionViewCell {
     }
 }
 
-// MARK: ControlButton
+// MARK: - ControlButton
 
-final class ControlButton: UIButton {
+class ControlButton: UIButton {
     // MARK: Types
 
     enum Direction {
@@ -340,10 +361,12 @@ final class ControlButton: UIButton {
     // MARK: Methods
 
     private func buildUI() {
-        backgroundColor = Colours.salmon
+        backgroundColor = Colours.brandSalmon
         layer.cornerRadius = 5
         let image = UIImage(systemName: direction.symbol)
         setImage(image, for: .normal)
+
+        tintColor = Colours.brandBrown
     }
 }
 
@@ -356,7 +379,7 @@ protocol ControlDelegate: AnyObject {
     func didPressMoveLeft()
 }
 
-// MARK: ControlView
+// MARK: - ControlView
 
 class ControlView: UIView {
     // MARK: UI Elements
@@ -369,7 +392,7 @@ class ControlView: UIView {
     private let colourView: UIView = {
         let view = UIView()
         view.layer.cornerRadius = 5
-        view.backgroundColor = .red
+        view.backgroundColor = Colours.black
 
         return view
     }()
@@ -468,13 +491,131 @@ class ControlView: UIView {
     }
 }
 
+// MARK: - ColourPickerDelegate
+
+protocol ColourPickerDelegate: AnyObject {
+    func didSelectColour(_ colour: UIColor)
+}
+
+// MARK: - ColourPickerView
+
+class ColourPickerView: UICollectionView {
+    // MARK: Properties
+
+    private let flowLayout: UICollectionViewFlowLayout = {
+        let layout = UICollectionViewFlowLayout()
+        layout.minimumLineSpacing = 4
+        /// Using just outside 8x scale to show half a cell at end of layout.
+        layout.itemSize = CGSize(width: 34, height: 34)
+        layout.scrollDirection = .horizontal
+
+        return layout
+    }()
+
+    private let cellIdentifier = String(describing: ColourCell.self)
+    private let colourArray: [UIColor] = [Colours.black, Colours.blue, Colours.red, Colours.tan,
+                                          Colours.darkGreen, Colours.lightGreen, Colours.yellow, Colours.white,
+                                          Colours.gray, Colours.cyan, Colours.orange, Colours.brown,
+                                          Colours.pink, Colours.violet, Colours.brightGreen, Colours.magenta]
+    private var selectedIndex: IndexPath = IndexPath(row: 0, section: 0)
+
+    weak var colourDelegate: ColourPickerDelegate?
+
+    // MARK: Initialization
+
+    init() {
+        super.init(frame: .zero, collectionViewLayout: flowLayout)
+
+        register(ColourCell.self, forCellWithReuseIdentifier: cellIdentifier)
+        dataSource = self
+        delegate = self
+        collectionViewLayout = flowLayout
+        backgroundColor = .clear
+        showsHorizontalScrollIndicator = false
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+// MARK: - ColourPickerView Data Source
+
+extension ColourPickerView: UICollectionViewDataSource {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        colourArray.count
+    }
+
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: cellIdentifier, for: indexPath) as? ColourCell {
+            cell.backgroundColor = colourArray[indexPath.row]
+            cell.layer.borderWidth = indexPath == selectedIndex ? 0 : 4
+
+            return cell
+        }
+
+        return UICollectionViewCell()
+    }
+}
+
+// MARK: - ColourPickerView Delegate
+
+extension ColourPickerView: UICollectionViewDelegate {
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        colourDelegate?.didSelectColour(colourArray[indexPath.row])
+        selectedIndex = indexPath
+        reloadItems(at: indexPathsForVisibleItems)
+    }
+}
+
+// MARK: - ColourCell
+
+class ColourCell: UICollectionViewCell {
+    // MARK: Initialization
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        buildUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Methods
+
+    private func buildUI() {
+        layer.cornerRadius = 5
+        layer.borderColor = Colours.brandPink.cgColor
+    }
+}
+
 // MARK: - Colours
 
 struct Colours {
-    static let offWhite: UIColor = UIColor(red: 236 / 255, green: 252 / 255, blue: 246 / 255, alpha: 1)
-    static let pink: UIColor = UIColor(red: 250 / 255, green: 228 / 255, blue: 230 / 255, alpha: 1)
-    static let salmon: UIColor = UIColor(red: 255 / 255, green: 205 / 255, blue: 182 / 255, alpha: 1)
-    static let brown: UIColor = UIColor(red: 35 / 255, green: 26 / 255, blue: 19 / 255, alpha: 1)
+    /// Brand colours used in UI.
+    static let brandWhite: UIColor = UIColor(red: 236 / 255, green: 252 / 255, blue: 246 / 255, alpha: 1)
+    static let brandPink: UIColor = UIColor(red: 250 / 255, green: 228 / 255, blue: 230 / 255, alpha: 1)
+    static let brandSalmon: UIColor = UIColor(red: 255 / 255, green: 205 / 255, blue: 182 / 255, alpha: 1)
+    static let brandBrown: UIColor = UIColor(red: 35 / 255, green: 26 / 255, blue: 19 / 255, alpha: 1)
+
+    /// Colours to use in colour palette.
+    static let black: UIColor = UIColor(red: 0 / 255, green: 0 / 255, blue: 0 / 255, alpha: 1)
+    static let blue: UIColor = UIColor(red: 0 / 255, green: 0 / 255, blue: 255 / 255, alpha: 1)
+    static let red: UIColor = UIColor(red: 255 / 255, green: 0 / 255, blue: 0 / 255, alpha: 1)
+    static let tan: UIColor = UIColor(red: 203 / 255, green: 255 / 255, blue: 101 / 255, alpha: 1)
+    static let darkGreen: UIColor = UIColor(red: 0 / 255, green: 127 / 255, blue: 0 / 255, alpha: 1)
+    static let lightGreen: UIColor = UIColor(red: 0 / 255, green: 255 / 255, blue: 0 / 255, alpha: 1)
+    static let yellow: UIColor = UIColor(red: 255 / 255, green: 255 / 255, blue: 0 / 255, alpha: 1)
+    static let white: UIColor = UIColor(red: 255 / 255, green: 255 / 255, blue: 255 / 255, alpha: 1)
+    static let gray: UIColor = UIColor(red: 127 / 255, green: 127 / 255, blue: 127 / 255, alpha: 1)
+    static let cyan: UIColor = UIColor(red: 0 / 255, green: 255 / 255, blue: 255 / 255, alpha: 1)
+    static let orange: UIColor = UIColor(red: 255 / 255, green: 159 / 255, blue: 0 / 255, alpha: 1)
+    static let brown: UIColor = UIColor(red: 127 / 255, green: 127 / 255, blue: 0 / 255, alpha: 1)
+    static let pink: UIColor = UIColor(red: 255 / 255, green: 63 / 255, blue: 255 / 255, alpha: 1)
+    static let violet: UIColor = UIColor(red: 127 / 255, green: 127 / 255, blue: 255 / 255, alpha: 1)
+    static let brightGreen: UIColor = UIColor(red: 127 / 255, green: 255 / 255, blue: 0 / 255, alpha: 1)
+    static let magenta: UIColor = UIColor(red: 255 / 255, green: 0 / 255, blue: 127 / 255, alpha: 1)
 }
 
 // MARK: - Utils
