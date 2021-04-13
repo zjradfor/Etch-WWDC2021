@@ -13,6 +13,7 @@ class MainViewController: UIViewController {
         return label
     }()
 
+    private let menuBarView: MenuBarView = MenuBarView(frame: .zero)
     private lazy var gridView: GridView = GridView(gridArray: gridArray)
     private let controlView: ControlView = ControlView(frame: .zero)
     private let colourPickerView: ColourPickerView = ColourPickerView(frame: .zero)
@@ -20,8 +21,7 @@ class MainViewController: UIViewController {
     private let stackView: UIStackView = {
         let stackView = UIStackView()
         stackView.axis = .vertical
-        stackView.spacing = 16
-        stackView.distribution = .equalSpacing
+        stackView.spacing = 8
 
         return stackView
     }()
@@ -58,12 +58,15 @@ class MainViewController: UIViewController {
     // MARK: Methods
 
     private func buildUI() {
+        menuBarView.delegate = self
         controlView.delegate = self
         colourPickerView.colourDelegate = self
 
         stackView.addArrangedSubview(titleLabel)
+        stackView.addArrangedSubview(menuBarView)
         stackView.addArrangedSubview(gridView)
         stackView.addArrangedSubview(controlView)
+        stackView.setCustomSpacing(16, after: controlView)
         stackView.addArrangedSubview(colourPickerView)
 
         view.addSubview(stackView)
@@ -89,6 +92,26 @@ class MainViewController: UIViewController {
         colourPickerView.activateConstraints([
             colourPickerView.widthAnchor.constraint(equalTo: stackView.widthAnchor)
         ])
+    }
+}
+
+// MARK: - MainViewController MenuBarDelegate
+
+extension MainViewController: MenuBarDelegate {
+    func didPressSave() {
+        print("save")
+    }
+
+    func didPressTrash() {
+        print("trash")
+    }
+
+    func didPressGallery() {
+        print("gallery")
+    }
+
+    func didPressHelp() {
+        print("help")
     }
 }
 
@@ -492,6 +515,113 @@ class ControlView: UIView {
     @objc
     private func moveLeftPressed() {
         delegate?.didPressMoveLeft()
+    }
+}
+
+// MARK: - MenuBarDelegate
+
+protocol MenuBarDelegate: AnyObject {
+    func didPressSave()
+    func didPressTrash()
+    func didPressGallery()
+    func didPressHelp()
+}
+
+// MARK: - MenuBarView
+
+class MenuBarView: UIStackView {
+    // MARK: UI Elements
+
+    private let saveButton: ControlButton = ControlButton(type: .save)
+    private let trashButton: ControlButton = ControlButton(type: .trash)
+
+    private let leftStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.spacing = 8
+        stackView.distribution = .equalSpacing
+
+        return stackView
+    }()
+
+    private let galleryButton: ControlButton = ControlButton(type: .gallery)
+    private let helpButton: ControlButton = ControlButton(type: .help)
+
+    private let rightStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .horizontal
+        stackView.spacing = 8
+        stackView.distribution = .equalSpacing
+
+        return stackView
+    }()
+
+    // MARK: Properties
+
+    weak var delegate: MenuBarDelegate?
+
+    // MARK: Initialization
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+
+        buildUI()
+        applyConstraints()
+    }
+
+    required init(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Methods
+
+    private func buildUI() {
+        axis = .horizontal
+        distribution = .equalSpacing
+
+        saveButton.addTarget(self, action: #selector(savePressed), for: .touchUpInside)
+        trashButton.addTarget(self, action: #selector(trashPressed), for: .touchUpInside)
+        galleryButton.addTarget(self, action: #selector(galleryPressed), for: .touchUpInside)
+        helpButton.addTarget(self, action: #selector(helpPressed), for: .touchUpInside)
+
+        leftStackView.addArrangedSubview(saveButton)
+        leftStackView.addArrangedSubview(trashButton)
+        rightStackView.addArrangedSubview(galleryButton)
+        rightStackView.addArrangedSubview(helpButton)
+
+        addArrangedSubview(leftStackView)
+        addArrangedSubview(rightStackView)
+    }
+
+    private func applyConstraints() {
+        [saveButton, trashButton, galleryButton, helpButton].forEach { view in
+            view.activateConstraints([
+                view.widthAnchor.constraint(equalToConstant: 32),
+                view.heightAnchor.constraint(equalToConstant: 32)
+            ])
+        }
+    }
+
+    // MARK: Actions
+
+    @objc
+    private func savePressed() {
+        delegate?.didPressSave()
+    }
+
+    @objc
+    private func trashPressed() {
+        delegate?.didPressTrash()
+    }
+
+    @objc
+    private func galleryPressed() {
+        delegate?.didPressGallery()
+    }
+
+    @objc
+    private func helpPressed() {
+        delegate?.didPressHelp()
     }
 }
 
