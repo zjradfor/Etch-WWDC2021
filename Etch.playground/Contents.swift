@@ -103,7 +103,19 @@ extension MainViewController: MenuBarDelegate {
     }
 
     func didPressTrash() {
-        print("trash")
+        DispatchQueue.main.async {
+            let alert = UIAlertController(title: "Clear Grid",
+                                          message: "Are you sure?",
+                                          preferredStyle: .alert)
+            let cancelAction = UIAlertAction(title: "No", style: .cancel)
+            let clearAction = UIAlertAction(title: "Yes", style: .default) { _ in
+                self.gridView.setGrid(to: self.gridArray)
+            }
+            alert.addAction(cancelAction)
+            alert.addAction(clearAction)
+
+            self.present(alert, animated: true)
+        }
     }
 
     func didPressGallery() {
@@ -193,6 +205,17 @@ class GridView: UICollectionView {
         let height = frame.height / CGFloat(gridArray.count)
 
         flowLayout.itemSize = CGSize(width: width, height: height)
+    }
+
+    func setGrid(to array: [[UIColor]]) {
+        if let currentPos = currentPosition,
+           let currentCell = cellForItem(at: currentPos) as? GridCell {
+            currentCell.stopBlinking()
+        }
+
+        currentPosition = nil
+        gridArray = array
+        reloadData()
     }
 
     func moveUp() {
