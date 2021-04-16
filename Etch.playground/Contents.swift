@@ -170,8 +170,13 @@ class GridView: UICollectionView {
     }()
 
     private let cellIdentifier = String(describing: GridCell.self)
+    private let pathHelper: PathHelper = PathHelper()
+
     private var currentPosition: IndexPath?
     private var gridArray: [[UIColor]]
+
+    var pathMagnitude: Int = 10
+
     var selectedColour: UIColor = Colours.black {
         didSet {
             /// Change the colour of cell you are currently on.
@@ -220,40 +225,29 @@ class GridView: UICollectionView {
 
     func moveUp() {
         guard let currentPos = currentPosition else { return }
-
-        selectCells([currentPos.above])
+        let path = pathHelper.generatePath(with: [currentPos.above], from: .up, magnitude: pathMagnitude)
+        selectCells(path)
     }
 
     func moveRight() {
         guard let currentPos = currentPosition else { return }
-
-        selectCells([currentPos.right])
+        let path = pathHelper.generatePath(with: [currentPos.right], from: .right, magnitude: pathMagnitude)
+        selectCells(path)
     }
 
     func moveDown() {
         guard let currentPos = currentPosition else { return }
-
-        selectCells([currentPos.below])
+        let path = pathHelper.generatePath(with: [currentPos.below], from: .down, magnitude: pathMagnitude)
+        selectCells(path)
     }
 
     func moveLeft() {
         guard let currentPos = currentPosition else { return }
-
-        selectCells([currentPos.left])
+        let path = pathHelper.generatePath(with: [currentPos.left], from: .left, magnitude: pathMagnitude)
+        selectCells(path)
     }
 
     // MARK: Private Methods
-
-    private func isSurroundingIndex(_ indexPath: IndexPath) -> Bool {
-        guard let currentPos = currentPosition else { return false }
-
-        let isAbove: Bool = indexPath == currentPos.above
-        let isRight: Bool = indexPath == currentPos.right
-        let isBelow: Bool = indexPath == currentPos.below
-        let isLeft: Bool = indexPath == currentPos.left
-
-        return isAbove || isRight || isBelow || isLeft
-    }
 
     private func isValidIndex(_ indexPath: IndexPath) -> Bool {
         let topValid: Bool = indexPath.section >= 0
@@ -273,7 +267,8 @@ class GridView: UICollectionView {
         for indexPath in validIndexPaths {
             gridArray[indexPath.row][indexPath.section] = selectedColour
         }
-        reloadItems(at: validIndexPaths)
+
+        reloadData()
 
         guard let lastIndex = validIndexPaths.last else { return }
 
@@ -315,15 +310,16 @@ extension GridView: UICollectionViewDataSource {
 extension GridView: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         /// If current position is nil, set it to the tapped cell.
-        guard currentPosition != nil else {
+        guard let currentPos = currentPosition else {
             currentPosition = indexPath
             selectCells([indexPath])
             return
         }
 
-        guard isSurroundingIndex(indexPath) else { return }
-
-        selectCells([indexPath])
+        if indexPath == currentPos.above { moveUp() }
+        if indexPath == currentPos.right { moveRight() }
+        if indexPath == currentPos.below { moveDown() }
+        if indexPath == currentPos.left { moveLeft() }
     }
 }
 
@@ -365,6 +361,57 @@ class GridCell: UICollectionViewCell {
         layer.borderWidth = 0.5
         layer.borderColor = UIColor.black.cgColor
         layer.cornerRadius = 2
+    }
+}
+
+// MARK: - PathHelper
+
+class PathHelper {
+    // MARK: Types
+
+    enum Direction {
+        case up, right, down, left
+
+        var reverse: Self {
+            switch self {
+            case .up: return .down
+            case .right: return .left
+            case .down: return .up
+            case .left: return .right
+            }
+        }
+
+        func getIndexPath(from indexPath: IndexPath) -> IndexPath {
+            switch self {
+            case .up: return indexPath.above
+            case .right: return indexPath.right
+            case .down: return indexPath.below
+            case .left: return indexPath.left
+            }
+        }
+    }
+
+    // MARK: Properties
+
+    private let directions: [Direction] = [.up, .right, .down, .left]
+
+    // MARK: Methods
+
+    /// generate a random path recursively. magnitude = 1 is normal. NOTE: this will give magnitude - 1 values.
+    func generatePath(with indexPaths: [IndexPath], from direction: Direction, magnitude: Int) -> [IndexPath] {
+        var generatedPath: [IndexPath] = indexPaths
+
+        guard magnitude > 1,
+              let previousIndex = indexPaths.last else {
+            return generatedPath
+        }
+
+        let allowedDirections = directions.filter({ $0 != direction.reverse })
+        let randomDirection = allowedDirections.randomElement() ?? .up
+        let pathValue = randomDirection.getIndexPath(from: previousIndex)
+        generatedPath.append(pathValue)
+
+        return generatePath(with: generatedPath, from: direction, magnitude: magnitude - 1)
     }
 }
 
