@@ -145,6 +145,10 @@ extension MainViewController: ControlDelegate {
     func didPressMoveLeft() {
         gridView.moveLeft()
     }
+
+    func didChangePathMagnitude(to value: Int) {
+        gridView.pathMagnitude = value
+    }
 }
 
 // MARK: - MainViewController ColourPickerDelegate
@@ -175,7 +179,7 @@ class GridView: UICollectionView {
     private var currentPosition: IndexPath?
     private var gridArray: [[UIColor]]
 
-    var pathMagnitude: Int = 10
+    var pathMagnitude: Int = 1
 
     var selectedColour: UIColor = Colours.black {
         didSet {
@@ -190,7 +194,6 @@ class GridView: UICollectionView {
     init(gridArray: [[UIColor]]) {
         self.gridArray = gridArray
         super.init(frame: .zero, collectionViewLayout: flowLayout)
-
         register(GridCell.self, forCellWithReuseIdentifier: cellIdentifier)
         dataSource = self
         delegate = self
@@ -261,7 +264,7 @@ class GridView: UICollectionView {
     private func selectCells(_ indexPaths: [IndexPath]) {
         guard let currentPos = currentPosition else { return }
 
-        /// Only use indexPaths within bounds of grid
+        /// Only use indexPaths within bounds of grid.
         let validIndexPaths: [IndexPath] = indexPaths.filter({ isValidIndex($0) })
 
         for indexPath in validIndexPaths {
@@ -340,13 +343,12 @@ class GridCell: UICollectionViewCell {
     // MARK: Public Methods
 
     func startBlinking() {
-        alpha = 0.5
         UIView.animate(withDuration: 0.5,
                        delay: 0,
                        options: [.curveEaseInOut, .autoreverse, .repeat, .allowUserInteraction]) {
-            self.alpha = 1
-        } completion: { _ in
             self.alpha = 0.5
+        } completion: { _ in
+            self.alpha = 1
         }
     }
 
@@ -447,7 +449,6 @@ class ControlButton: UIButton {
     init(type: ButtonType) {
         self.type = type
         super.init(frame: .zero)
-
         buildUI()
     }
 
@@ -474,11 +475,12 @@ protocol ControlDelegate: AnyObject {
     func didPressMoveRight()
     func didPressMoveDown()
     func didPressMoveLeft()
+    func didChangePathMagnitude(to value: Int)
 }
 
 // MARK: - ControlView
 
-class ControlView: UIView {
+class ControlView: UIStackView {
     // MARK: UI Elements
 
     private let upButton: ControlButton = ControlButton(type: .up)
@@ -493,6 +495,10 @@ class ControlView: UIView {
 
         return view
     }()
+
+    private let pathControlView: PathControlView = PathControlView(frame: .zero)
+
+    // MARK: UI Containers
 
     private let horizStackView: UIStackView = {
         let stackView = UIStackView()
@@ -526,7 +532,7 @@ class ControlView: UIView {
         applyConstraints()
     }
 
-    required init?(coder: NSCoder) {
+    required init(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -539,6 +545,11 @@ class ControlView: UIView {
     // MARK: Private Methods
 
     private func buildUI() {
+        pathControlView.delegate = self
+
+        axis = .horizontal
+        spacing = 8
+
         upButton.addTarget(self, action: #selector(moveUpPressed), for: .touchUpInside)
         rightButton.addTarget(self, action: #selector(moveRightPressed), for: .touchUpInside)
         downButton.addTarget(self, action: #selector(moveDownPressed), for: .touchUpInside)
@@ -553,7 +564,8 @@ class ControlView: UIView {
         vertStackView.addArrangedSubview(horizStackView)
         vertStackView.addArrangedSubview(downButton)
 
-        addSubview(vertStackView)
+        addArrangedSubview(vertStackView)
+        addArrangedSubview(pathControlView)
     }
 
     private func applyConstraints() {
@@ -563,6 +575,11 @@ class ControlView: UIView {
                 view.heightAnchor.constraint(equalToConstant: 32)
             ])
         }
+
+        pathControlView.activateConstraints([
+            pathControlView.widthAnchor.constraint(equalToConstant: 208),
+            pathControlView.heightAnchor.constraint(equalTo: heightAnchor)
+        ])
     }
 
     // MARK: Actions
@@ -585,6 +602,132 @@ class ControlView: UIView {
     @objc
     private func moveLeftPressed() {
         delegate?.didPressMoveLeft()
+    }
+}
+
+// MARK: - ControlView PathControlDelegate
+
+extension ControlView: PathControlDelegate {
+    func didChangePathMagnitude(to value: Int) {
+        delegate?.didChangePathMagnitude(to: value)
+    }
+}
+
+// MARK: - PathControlDelegate
+
+protocol PathControlDelegate: AnyObject {
+    func didChangePathMagnitude(to value: Int)
+}
+
+// MARK: - PathControlView
+
+class PathControlView: UIView {
+    // MARK: UI Elements
+
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Abstract Meter"
+        label.font = .boldSystemFont(ofSize: 16)
+
+        return label
+    }()
+
+    private let subTitleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Adjusting this value will create random paths."
+        label.font = .systemFont(ofSize: 8)
+        label.numberOfLines = 0
+
+        return label
+    }()
+
+    private let slider: UISlider = {
+        let slider = UISlider()
+        slider.tintColor = Colours.brandBrown
+        slider.maximumTrackTintColor = Colours.brandPink
+        slider.setThumbImage(UIImage(systemName: "die.face.1.fill"), for: .normal)
+        slider.isContinuous = false
+
+        return slider
+    }()
+
+    private let percentageLabel: UILabel = {
+        let label = UILabel()
+        label.text = "0%"
+        label.font = .systemFont(ofSize: 8)
+        label.textAlignment = .right
+
+        return label
+    }()
+
+    private let stackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+
+        return stackView
+    }()
+
+    // MARK: Properties
+
+    private let minValue: Int = 1
+    private let maxValue: Int = 24
+
+    weak var delegate: PathControlDelegate?
+
+    // MARK: Initialization
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        buildUI()
+        applyConstraints()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Methods
+
+    private func buildUI() {
+        layer.cornerRadius = 5
+        backgroundColor = Colours.brandSalmon
+
+        slider.minimumValue = Float(minValue)
+        slider.maximumValue = Float(maxValue)
+        slider.addTarget(self, action: #selector(sliderValueDidChange), for: .valueChanged)
+
+        stackView.addArrangedSubview(titleLabel)
+        stackView.addArrangedSubview(subTitleLabel)
+        stackView.setCustomSpacing(16, after: subTitleLabel)
+        stackView.addArrangedSubview(slider)
+        stackView.addArrangedSubview(percentageLabel)
+
+        addSubview(stackView)
+    }
+
+    private func applyConstraints() {
+        stackView.activateConstraints([
+            stackView.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+            stackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),
+            stackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            stackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8)
+        ])
+    }
+
+    private func setPercentageLabel(for value: Int) {
+        let percentDec = Double(value - minValue) / Double(maxValue - minValue)
+        let percent = Int(percentDec * 100)
+
+        percentageLabel.text = "\(percent)%"
+    }
+
+    // MARK: Actions
+
+    @objc
+    private func sliderValueDidChange(_ sender: UISlider) {
+        let value = Int(ceil(sender.value))
+        setPercentageLabel(for: value)
+        delegate?.didChangePathMagnitude(to: value)
     }
 }
 
@@ -634,7 +777,6 @@ class MenuBarView: UIStackView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-
         buildUI()
         applyConstraints()
     }
@@ -744,7 +886,6 @@ class ColourPickerView: UIStackView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-
         buildUI()
         applyConstraints()
     }
@@ -771,6 +912,8 @@ class ColourPickerView: UIStackView {
             paletteButton.heightAnchor.constraint(equalToConstant: 32)
         ])
     }
+
+    // MARK: Actions
 
     @objc
     private func palettePressed() {
