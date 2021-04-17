@@ -32,6 +32,7 @@ class MainViewController: UIViewController {
     private var gridArray: [[UIColor]] {
         Array(repeating: Array(repeating: Colours.brandWhite, count: gridDimension), count: gridDimension)
     }
+    private var savedEtchings: [Etching] = [Etching]()
 
     // MARK: Life Cycle Methods
 
@@ -99,6 +100,9 @@ class MainViewController: UIViewController {
 
 extension MainViewController: MenuBarDelegate {
     func didPressSave() {
+        let currentGrid = gridView.getGrid()
+        let newEtching = Etching(title: "New etching", gridArray: currentGrid)
+        savedEtchings.append(newEtching)
         print("save")
     }
 
@@ -119,7 +123,9 @@ extension MainViewController: MenuBarDelegate {
     }
 
     func didPressGallery() {
-        print("gallery")
+        let vc = GalleryViewController(savedEtchings: savedEtchings)
+        let nav = UINavigationController(rootViewController: vc)
+        present(nav, animated: true)
     }
 
     func didPressHelp() {
@@ -224,6 +230,10 @@ class GridView: UICollectionView {
         currentPosition = nil
         gridArray = array
         reloadData()
+    }
+
+    func getGrid() -> [[UIColor]] {
+        return gridArray
     }
 
     func moveUp() {
@@ -646,6 +656,7 @@ class PathControlView: UIView {
         slider.tintColor = Colours.brandBrown
         slider.maximumTrackTintColor = Colours.brandPink
         slider.setThumbImage(UIImage(systemName: "die.face.1.fill"), for: .normal)
+        /// Setting to false to help Playground performance.
         slider.isContinuous = false
 
         return slider
@@ -850,16 +861,6 @@ class ColourPickerView: UIStackView {
 
     private let paletteButton: ControlButton = ControlButton(type: .palette)
 
-    private let flowLayout: UICollectionViewFlowLayout = {
-        let layout = UICollectionViewFlowLayout()
-        layout.minimumLineSpacing = 4
-        /// Using just outside 8x scale to show half a cell at end of layout.
-        layout.itemSize = CGSize(width: 34, height: 34)
-        layout.scrollDirection = .horizontal
-
-        return layout
-    }()
-
     private lazy var collectionView: UICollectionView = {
         let view = UICollectionView(frame: .zero, collectionViewLayout: flowLayout)
         view.register(ColourCell.self, forCellWithReuseIdentifier: cellIdentifier)
@@ -872,6 +873,16 @@ class ColourPickerView: UIStackView {
     }()
 
     // MARK: Properties
+
+    private let flowLayout: UICollectionViewFlowLayout = {
+        let layout = UICollectionViewFlowLayout()
+        layout.minimumLineSpacing = 4
+        /// Using just outside 8x scale to show half a cell at end of layout.
+        layout.itemSize = CGSize(width: 34, height: 34)
+        layout.scrollDirection = .horizontal
+
+        return layout
+    }()
 
     private let cellIdentifier = String(describing: ColourCell.self)
     private let colourArray: [UIColor] = [Colours.black, Colours.blue, Colours.red, Colours.tan,
@@ -969,6 +980,162 @@ class ColourCell: UICollectionViewCell {
     private func buildUI() {
         layer.cornerRadius = 5
         layer.borderColor = Colours.brandPink.cgColor
+    }
+}
+
+// MARK: - Etching
+
+struct Etching {
+    let title: String
+    let gridArray: [[UIColor]]
+}
+
+// MARK: - GalleryViewController
+
+class GalleryViewController: UICollectionViewController {
+    // MARK: UI Elements
+
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Gallery"
+        label.font = .preferredFont(forTextStyle: .largeTitle)
+
+        return label
+    }()
+
+    // MARK: Properties
+
+    private let flowLayout: UICollectionViewFlowLayout = {
+        let layout = UICollectionViewFlowLayout()
+        layout.minimumLineSpacing = 8
+        layout.sectionInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+
+        return layout
+    }()
+
+    private let cellIdentifier = String(describing: GalleryCell.self)
+
+    private var etchingsArray: [Etching] = [Etching]()
+
+    // MARK: Initialization
+
+    init(savedEtchings: [Etching]) {
+        super.init(collectionViewLayout: flowLayout)
+        etchingsArray.append(contentsOf: savedEtchings)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Life Cycle Methods
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        buildUI()
+    }
+
+    // MARK: Methods
+
+    private func buildUI() {
+        collectionView.register(GalleryCell.self, forCellWithReuseIdentifier: cellIdentifier)
+        collectionView.backgroundColor = Colours.brandPink
+
+        navigationController?.navigationBar.barTintColor = Colours.brandPink
+        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: titleLabel)
+        let closeButton = UIBarButtonItem(image: UIImage(systemName: "xmark"),
+                                         style: .done,
+                                         target: self,
+                                         action: #selector(didPressClose))
+        closeButton.tintColor = Colours.brandBrown
+        navigationItem.rightBarButtonItem = closeButton
+
+    }
+
+    // MARK: Data Source
+
+    override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return etchingsArray.count
+    }
+
+    override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: cellIdentifier, for: indexPath) as? GalleryCell {
+            let text = etchingsArray[indexPath.item].title
+            cell.configure(text: text)
+
+            return cell
+        }
+            
+        return UICollectionViewCell()
+    }
+
+    // MARK: Actions
+
+    @objc
+    private func didPressClose() {
+        dismiss(animated: true)
+    }
+}
+
+// MARK: - GalleryViewController Layout
+
+extension GalleryViewController: UICollectionViewDelegateFlowLayout {
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        let numberOfCells: CGFloat = 3
+        let cellSpacing: CGFloat = 8
+        let extraSpacing: CGFloat = (cellSpacing * (numberOfCells + 2))
+        let size: CGFloat = (collectionView.frame.width - extraSpacing) / numberOfCells
+        return CGSize(width: size, height: size)
+    }
+}
+
+// MARK: - GalleryCell
+
+class GalleryCell: UICollectionViewCell {
+    // MARK: UI Elements
+
+    private let label: UILabel = {
+        let label = UILabel()
+        label.font = .systemFont(ofSize: 12)
+        label.textAlignment = .center
+
+        return label
+    }()
+
+    // MARK: Initialization
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        buildUI()
+        applyConstraints()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Public Methods
+
+    func configure(text: String) {
+        label.text = text
+    }
+
+    // MARK: Private Methods
+
+    private func buildUI() {
+        backgroundColor = Colours.brandSalmon
+        layer.cornerRadius = 5
+
+        addSubview(label)
+    }
+
+    private func applyConstraints() {
+        label.activateConstraints([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
     }
 }
 
