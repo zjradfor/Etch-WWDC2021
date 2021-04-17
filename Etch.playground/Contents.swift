@@ -1014,13 +1014,6 @@ class ColourCell: UICollectionViewCell {
     }
 }
 
-// MARK: - Etching
-
-struct Etching {
-    let title: String
-    let gridArray: [[UIColor]]
-}
-
 // MARK: - GalleryDelegate
 
 protocol GalleryDelegate: AnyObject {
@@ -1062,6 +1055,7 @@ class GalleryViewController: UICollectionViewController {
     init(savedEtchings: [Etching]) {
         super.init(collectionViewLayout: flowLayout)
         etchingsArray.append(contentsOf: savedEtchings)
+        etchingsArray.append(contentsOf: CustomDesigns().array)
     }
 
     required init?(coder: NSCoder) {
@@ -1242,34 +1236,6 @@ class GalleryDescriptionCell: UICollectionViewCell {
             label.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
     }
-}
-
-// MARK: - Colours
-
-struct Colours {
-    /// Brand colours used in UI.
-    static let brandWhite: UIColor = UIColor(red: 236 / 255, green: 252 / 255, blue: 246 / 255, alpha: 1)
-    static let brandPink: UIColor = UIColor(red: 250 / 255, green: 228 / 255, blue: 230 / 255, alpha: 1)
-    static let brandSalmon: UIColor = UIColor(red: 255 / 255, green: 205 / 255, blue: 182 / 255, alpha: 1)
-    static let brandBrown: UIColor = UIColor(red: 35 / 255, green: 26 / 255, blue: 19 / 255, alpha: 1)
-
-    /// Colours to use in colour palette.
-    static let black: UIColor = UIColor(red: 0 / 255, green: 0 / 255, blue: 0 / 255, alpha: 1)
-    static let blue: UIColor = UIColor(red: 0 / 255, green: 0 / 255, blue: 255 / 255, alpha: 1)
-    static let red: UIColor = UIColor(red: 255 / 255, green: 0 / 255, blue: 0 / 255, alpha: 1)
-    static let tan: UIColor = UIColor(red: 203 / 255, green: 255 / 255, blue: 101 / 255, alpha: 1)
-    static let darkGreen: UIColor = UIColor(red: 0 / 255, green: 127 / 255, blue: 0 / 255, alpha: 1)
-    static let lightGreen: UIColor = UIColor(red: 0 / 255, green: 255 / 255, blue: 0 / 255, alpha: 1)
-    static let yellow: UIColor = UIColor(red: 255 / 255, green: 255 / 255, blue: 0 / 255, alpha: 1)
-    static let white: UIColor = UIColor(red: 255 / 255, green: 255 / 255, blue: 255 / 255, alpha: 1)
-    static let gray: UIColor = UIColor(red: 127 / 255, green: 127 / 255, blue: 127 / 255, alpha: 1)
-    static let cyan: UIColor = UIColor(red: 0 / 255, green: 255 / 255, blue: 255 / 255, alpha: 1)
-    static let orange: UIColor = UIColor(red: 255 / 255, green: 159 / 255, blue: 0 / 255, alpha: 1)
-    static let brown: UIColor = UIColor(red: 127 / 255, green: 127 / 255, blue: 0 / 255, alpha: 1)
-    static let pink: UIColor = UIColor(red: 255 / 255, green: 63 / 255, blue: 255 / 255, alpha: 1)
-    static let violet: UIColor = UIColor(red: 127 / 255, green: 127 / 255, blue: 255 / 255, alpha: 1)
-    static let brightGreen: UIColor = UIColor(red: 127 / 255, green: 255 / 255, blue: 0 / 255, alpha: 1)
-    static let magenta: UIColor = UIColor(red: 255 / 255, green: 0 / 255, blue: 127 / 255, alpha: 1)
 }
 
 // MARK: - Utils
