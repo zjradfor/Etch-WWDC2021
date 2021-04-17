@@ -101,9 +101,10 @@ class MainViewController: UIViewController {
 extension MainViewController: MenuBarDelegate {
     func didPressSave() {
         let currentGrid = gridView.getGrid()
-        let newEtching = Etching(title: "New etching", gridArray: currentGrid)
+        let newTitle = "Etching \(savedEtchings.count + 1)"
+        let newEtching = Etching(title: newTitle, gridArray: currentGrid)
         savedEtchings.append(newEtching)
-        print("save")
+        menuBarView.indicateSaved()
     }
 
     func didPressTrash() {
@@ -124,6 +125,7 @@ extension MainViewController: MenuBarDelegate {
 
     func didPressGallery() {
         let vc = GalleryViewController(savedEtchings: savedEtchings)
+        vc.galleryDelegate = self
         let nav = UINavigationController(rootViewController: vc)
         present(nav, animated: true)
     }
@@ -163,6 +165,14 @@ extension MainViewController: ColourPickerDelegate {
     func didSelectColour(_ colour: UIColor) {
         controlView.setColour(to: colour)
         gridView.selectedColour = colour
+    }
+}
+
+// MARK: - MainViewController GalleryDelegate
+
+extension MainViewController: GalleryDelegate {
+    func loadGrid(_ gridArray: [[UIColor]]) {
+        gridView.setGrid(to: gridArray)
     }
 }
 
@@ -780,6 +790,15 @@ class MenuBarView: UIStackView {
         return stackView
     }()
 
+    private let savedIndicatorLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Saved!"
+        label.font = .systemFont(ofSize: 12)
+        label.alpha = 0
+
+        return label
+    }()
+
     // MARK: Properties
 
     weak var delegate: MenuBarDelegate?
@@ -796,7 +815,18 @@ class MenuBarView: UIStackView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // MARK: Methods
+    // MARK: Public Methods
+
+    func indicateSaved() {
+        savedIndicatorLabel.alpha = 1
+        UIView.animate(withDuration: 4.5,
+                       delay: 1.5,
+                       options: [.curveEaseInOut]) {
+            self.savedIndicatorLabel.alpha = 0
+        }
+    }
+
+    // MARK: Private Methods
 
     private func buildUI() {
         axis = .horizontal
@@ -813,6 +843,7 @@ class MenuBarView: UIStackView {
         rightStackView.addArrangedSubview(helpButton)
 
         addArrangedSubview(leftStackView)
+        addArrangedSubview(savedIndicatorLabel)
         addArrangedSubview(rightStackView)
     }
 
@@ -990,6 +1021,12 @@ struct Etching {
     let gridArray: [[UIColor]]
 }
 
+// MARK: - GalleryDelegate
+
+protocol GalleryDelegate: AnyObject {
+    func loadGrid(_ gridArray: [[UIColor]])
+}
+
 // MARK: - GalleryViewController
 
 class GalleryViewController: UICollectionViewController {
@@ -1014,8 +1051,11 @@ class GalleryViewController: UICollectionViewController {
     }()
 
     private let cellIdentifier = String(describing: GalleryCell.self)
+    private let descriptionCellIdentifier = String(describing: GalleryDescriptionCell.self)
 
     private var etchingsArray: [Etching] = [Etching]()
+
+    weak var galleryDelegate: GalleryDelegate?
 
     // MARK: Initialization
 
@@ -1040,6 +1080,7 @@ class GalleryViewController: UICollectionViewController {
 
     private func buildUI() {
         collectionView.register(GalleryCell.self, forCellWithReuseIdentifier: cellIdentifier)
+        collectionView.register(GalleryDescriptionCell.self, forCellWithReuseIdentifier: descriptionCellIdentifier)
         collectionView.backgroundColor = Colours.brandPink
 
         navigationController?.navigationBar.barTintColor = Colours.brandPink
@@ -1053,27 +1094,45 @@ class GalleryViewController: UICollectionViewController {
 
     }
 
-    // MARK: Data Source
-
-    override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return etchingsArray.count
-    }
-
-    override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: cellIdentifier, for: indexPath) as? GalleryCell {
-            let text = etchingsArray[indexPath.item].title
-            cell.configure(text: text)
-
-            return cell
-        }
-            
-        return UICollectionViewCell()
-    }
-
     // MARK: Actions
 
     @objc
     private func didPressClose() {
+        dismiss(animated: true)
+    }
+
+    // MARK: Data Source
+
+    override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return etchingsArray.count + 1
+    }
+
+    override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        guard indexPath.item != 0 else {
+            if let descriptionCell = collectionView.dequeueReusableCell(withReuseIdentifier: descriptionCellIdentifier, for: indexPath) as? GalleryDescriptionCell {
+                return descriptionCell
+            }
+
+            return UICollectionViewCell()
+        }
+
+        if let cell = collectionView.dequeueReusableCell(withReuseIdentifier: cellIdentifier, for: indexPath) as? GalleryCell {
+            let text = etchingsArray[indexPath.item - 1].title
+            cell.configure(text: text)
+
+            return cell
+        }
+
+        return UICollectionViewCell()
+    }
+
+    // MARK: Delegate
+
+    override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        guard indexPath.item != 0 else { return }
+        let gridArray = etchingsArray[indexPath.item - 1].gridArray
+        galleryDelegate?.loadGrid(gridArray)
+
         dismiss(animated: true)
     }
 }
@@ -1126,6 +1185,52 @@ class GalleryCell: UICollectionViewCell {
     private func buildUI() {
         backgroundColor = Colours.brandSalmon
         layer.cornerRadius = 5
+
+        addSubview(label)
+    }
+
+    private func applyConstraints() {
+        label.activateConstraints([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+}
+
+// MARK: - GalleryDescriptionCell
+
+class GalleryDescriptionCell: UICollectionViewCell {
+    // MARK: UI Elements
+
+    private let label: UILabel = {
+        let label = UILabel()
+        label.text = "Your saved Etchings will appear here. Select an Etching to load it onto the grid."
+        label.font = .systemFont(ofSize: 8)
+        label.numberOfLines = 0
+
+        return label
+    }()
+
+    // MARK: Initialization
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        buildUI()
+        applyConstraints()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Private Methods
+
+    private func buildUI() {
+        backgroundColor = Colours.brandSalmon
+        layer.cornerRadius = 5
+        layer.borderWidth = 1
+        layer.borderColor = UIColor.black.cgColor
 
         addSubview(label)
     }
