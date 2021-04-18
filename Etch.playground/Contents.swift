@@ -775,7 +775,7 @@ class PathControlView: UIView {
 
     private let subTitleLabel: UILabel = {
         let label = UILabel()
-        label.text = "Adjusting this value will create random paths."
+        label.text = "Generate random paths. The higher the value, the longer the path."
         label.font = .systemFont(ofSize: 8)
         label.numberOfLines = 0
 
@@ -840,7 +840,7 @@ class PathControlView: UIView {
 
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(subTitleLabel)
-        stackView.setCustomSpacing(16, after: subTitleLabel)
+        stackView.setCustomSpacing(8, after: subTitleLabel)
         stackView.addArrangedSubview(slider)
         stackView.addArrangedSubview(percentageLabel)
 
