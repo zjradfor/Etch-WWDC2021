@@ -35,7 +35,7 @@ class MainViewController: UIViewController {
     }
     private var savedEtchings: [Etching] = [Etching]()
 
-    private var newGalleryCount: Int = 0 {
+    private var newGalleryCount: Int = 6 {
         didSet {
             menuBarView.setGalleryBadge(to: newGalleryCount)
         }
@@ -247,7 +247,7 @@ class InstructionLabel: UILabel {
 
         var coolDown: DispatchTime {
             switch self {
-            case .welcome: return .now() + 1
+            case .welcome: return .now() + 0
             case .grid: return .now() + 1
             case .control: return .now() + 8
             case .colour: return .now() + 6
@@ -949,7 +949,7 @@ class MenuBarView: UIStackView {
 
     private let galleryBadge: UILabel = {
         let label = UILabel()
-        label.text = "1"
+        label.text = "6"
         label.font = .systemFont(ofSize: 8)
         label.layer.cornerRadius = 8
         label.layer.masksToBounds = true
