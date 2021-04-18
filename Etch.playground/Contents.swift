@@ -219,7 +219,7 @@ class InstructionLabel: UILabel {
     // MARK: Types
 
     enum Milestone {
-        case welcome, grid, control, colour, abstractMeter, gallery, enjoy, done
+        case welcome, grid, control, colour, abstractMeter, controlAgain, gallery, enjoy, done
 
         var text: String {
             switch self {
@@ -228,17 +228,33 @@ class InstructionLabel: UILabel {
             case .control: return "Move the cursor by tapping adjacent cells or using the arrows below"
             case .colour: return "Change your colour using the Colour Picker"
             case .abstractMeter: return "Try changing the value of the Abstract Meter"
+            case .controlAgain: return "Move the cursor around again"
             case .gallery: return "Check out the Gallery"
             case .enjoy: return "Enjoy 😁"
             case .done: return ""
+            }
+        }
+
+        var coolDown: DispatchTime {
+            switch self {
+            case .welcome: return .now() + 1
+            case .grid: return .now() + 1
+            case .control: return .now() + 8
+            case .colour: return .now() + 6
+            case .abstractMeter: return .now() + 1
+            case .controlAgain: return .now() + 6
+            case .gallery: return .now() + 1
+            case .enjoy: return .now() + 0
+            case .done: return .now() + 0
             }
         }
     }
 
     // MARK: Properties
 
-    private let milestones: [Milestone] = [.welcome, .grid, .control, .colour, .abstractMeter, .gallery, .enjoy, .done]
+    private let milestones: [Milestone] = [.welcome, .grid, .control, .colour, .abstractMeter, .controlAgain, .gallery, .enjoy, .done]
     private var currentIndex: Int = 0
+    private var isInCooldown: Bool = false
 
     // MARK: Initialization
 
@@ -256,11 +272,19 @@ class InstructionLabel: UILabel {
     /// Returns true if the milestone was successfully met.
     func milestoneReached(_ milestone: Milestone) -> Bool {
         guard milestone == milestones[currentIndex],
-              currentIndex + 1 < milestones.count else { return false }
+              currentIndex + 1 < milestones.count,
+              !isInCooldown else { return false }
 
-        currentIndex = currentIndex + 1
-        let currentMilestone = milestones[currentIndex]
-        text = currentMilestone.text
+        text = " "
+
+        isInCooldown = true
+        DispatchQueue.main.asyncAfter(deadline: milestone.coolDown) { [weak self] in
+            guard let strongSelf = self else { return }
+            strongSelf.currentIndex = strongSelf.currentIndex + 1
+            let currentMilestone = strongSelf.milestones[strongSelf.currentIndex]
+            strongSelf.text = currentMilestone.text
+            strongSelf.isInCooldown = false
+        }
 
         return true
     }
@@ -384,6 +408,7 @@ class GridView: UICollectionView {
     private func selectCells(_ indexPaths: [IndexPath]) {
         guard let currentPos = currentPosition else { return }
 
+        onboardingDelegate?.didMeetMilestone(.controlAgain)
         onboardingDelegate?.didMeetMilestone(.control)
 
         /// Only use indexPaths within bounds of grid.
