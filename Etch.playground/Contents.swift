@@ -35,6 +35,12 @@ class MainViewController: UIViewController {
     }
     private var savedEtchings: [Etching] = [Etching]()
 
+    private var newGalleryCount: Int = 0 {
+        didSet {
+            menuBarView.setGalleryBadge(to: newGalleryCount)
+        }
+    }
+
     // MARK: Life Cycle Methods
 
     override func loadView() {
@@ -115,6 +121,8 @@ extension MainViewController: MenuBarDelegate {
         let newEtching = Etching(title: newTitle, gridArray: currentGrid)
         savedEtchings.append(newEtching)
         menuBarView.indicateSaved()
+
+        newGalleryCount = newGalleryCount + 1
     }
 
     func didPressTrash() {
@@ -141,10 +149,12 @@ extension MainViewController: MenuBarDelegate {
 
         didMeetMilestone(.enjoy)
         didMeetMilestone(.gallery)
+
+        newGalleryCount = 0
     }
 
     func didPressHelp() {
-        print("help")
+        menuBarView.toggleHelp()
     }
 }
 
@@ -230,7 +240,7 @@ class InstructionLabel: UILabel {
             case .abstractMeter: return "Try changing the value of the Abstract Meter"
             case .controlAgain: return "Move the cursor around again"
             case .gallery: return "Check out the Gallery"
-            case .enjoy: return "Enjoy 😁"
+            case .enjoy: return "Enjoy! 😁"
             case .done: return ""
             }
         }
@@ -910,6 +920,46 @@ class MenuBarView: UIStackView {
         return label
     }()
 
+    private let saveLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Save"
+        label.font = .systemFont(ofSize: 12)
+        label.isHidden = true
+
+        return label
+    }()
+
+    private let trashLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Clear"
+        label.font = .systemFont(ofSize: 12)
+        label.isHidden = true
+
+        return label
+    }()
+
+    private let galleryLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Gallery"
+        label.font = .systemFont(ofSize: 12)
+        label.isHidden = true
+
+        return label
+    }()
+
+    private let galleryBadge: UILabel = {
+        let label = UILabel()
+        label.text = "1"
+        label.font = .systemFont(ofSize: 8)
+        label.layer.cornerRadius = 8
+        label.layer.masksToBounds = true
+        label.backgroundColor = Colours.brandBrown
+        label.textColor = Colours.brandWhite
+        label.textAlignment = .center
+
+        return label
+    }()
+
     // MARK: Properties
 
     weak var delegate: MenuBarDelegate?
@@ -937,6 +987,17 @@ class MenuBarView: UIStackView {
         }
     }
 
+    func toggleHelp() {
+        /// Arbitrarily picking a help label since they all toggle together.
+        let isHelpShowing = saveLabel.isHidden
+        [saveLabel, trashLabel, galleryLabel].forEach({ $0.isHidden = !isHelpShowing })
+    }
+
+    func setGalleryBadge(to number: Int) {
+        galleryBadge.isHidden = number == 0
+        galleryBadge.text = String(number)
+    }
+
     // MARK: Private Methods
 
     private func buildUI() {
@@ -949,8 +1010,12 @@ class MenuBarView: UIStackView {
         helpButton.addTarget(self, action: #selector(helpPressed), for: .touchUpInside)
 
         leftStackView.addArrangedSubview(saveButton)
+        leftStackView.addArrangedSubview(saveLabel)
         leftStackView.addArrangedSubview(trashButton)
+        leftStackView.addArrangedSubview(trashLabel)
         rightStackView.addArrangedSubview(galleryButton)
+        galleryButton.addSubview(galleryBadge)
+        rightStackView.addArrangedSubview(galleryLabel)
         rightStackView.addArrangedSubview(helpButton)
 
         addArrangedSubview(leftStackView)
@@ -965,6 +1030,13 @@ class MenuBarView: UIStackView {
                 view.heightAnchor.constraint(equalToConstant: 32)
             ])
         }
+
+        galleryBadge.activateConstraints([
+            galleryBadge.widthAnchor.constraint(equalToConstant: 16),
+            galleryBadge.heightAnchor.constraint(equalToConstant: 16),
+            galleryBadge.topAnchor.constraint(equalTo: galleryButton.topAnchor, constant: -4),
+            galleryBadge.trailingAnchor.constraint(equalTo: galleryButton.trailingAnchor, constant: 4)
+        ])
     }
 
     // MARK: Actions
