@@ -14,6 +14,7 @@ class MainViewController: UIViewController {
     }()
 
     private let menuBarView: MenuBarView = MenuBarView(frame: .zero)
+    private let instructionLabel: InstructionLabel = InstructionLabel(frame: .zero)
     private lazy var gridView: GridView = GridView(gridArray: gridArray)
     private let controlView: ControlView = ControlView(frame: .zero)
     private let colourPickerView: ColourPickerView = ColourPickerView(frame: .zero)
@@ -54,17 +55,26 @@ class MainViewController: UIViewController {
         super.viewDidAppear(animated)
 
         gridView.setUp()
+        gridView.isUserInteractionEnabled = false
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.5) {
+            self.gridView.isUserInteractionEnabled = true
+            self.instructionLabel.milestoneReached(.welcome)
+            self.instructionLabel.startBlinking()
+        }
     }
 
     // MARK: Methods
 
     private func buildUI() {
         menuBarView.delegate = self
+        gridView.onboardingDelegate = self
         controlView.delegate = self
         colourPickerView.colourDelegate = self
 
         stackView.addArrangedSubview(titleLabel)
         stackView.addArrangedSubview(menuBarView)
+        stackView.addArrangedSubview(instructionLabel)
         stackView.addArrangedSubview(gridView)
         stackView.addArrangedSubview(controlView)
         stackView.setCustomSpacing(16, after: controlView)
@@ -128,6 +138,9 @@ extension MainViewController: MenuBarDelegate {
         vc.galleryDelegate = self
         let nav = UINavigationController(rootViewController: vc)
         present(nav, animated: true)
+
+        didMeetMilestone(.enjoy)
+        didMeetMilestone(.gallery)
     }
 
     func didPressHelp() {
@@ -156,6 +169,7 @@ extension MainViewController: ControlDelegate {
 
     func didChangePathMagnitude(to value: Int) {
         gridView.pathMagnitude = value
+        didMeetMilestone(.abstractMeter)
     }
 }
 
@@ -165,6 +179,7 @@ extension MainViewController: ColourPickerDelegate {
     func didSelectColour(_ colour: UIColor) {
         controlView.setColour(to: colour)
         gridView.selectedColour = colour
+        didMeetMilestone(.colour)
     }
 }
 
@@ -173,6 +188,89 @@ extension MainViewController: ColourPickerDelegate {
 extension MainViewController: GalleryDelegate {
     func loadGrid(_ gridArray: [[UIColor]]) {
         gridView.setGrid(to: gridArray)
+    }
+}
+
+// MARK: - MainViewController OnboardingDelegate
+
+extension MainViewController: OnboardingDelegate {
+    func didMeetMilestone(_ milestone: InstructionLabel.Milestone) {
+        guard instructionLabel.milestoneReached(milestone) else { return }
+
+        /// Trigger next onboarding action if needed.
+        switch milestone {
+        case .control:
+            colourPickerView.animateColourPicker()
+        default:
+            break
+        }
+    }
+}
+
+// MARK: - OnboardingDelegate
+
+protocol OnboardingDelegate: AnyObject {
+    func didMeetMilestone(_ milestone: InstructionLabel.Milestone)
+}
+
+// MARK: - InstructionLabel
+
+class InstructionLabel: UILabel {
+    // MARK: Types
+
+    enum Milestone {
+        case welcome, grid, control, colour, abstractMeter, gallery, enjoy, done
+
+        var text: String {
+            switch self {
+            case .welcome: return "Welcome to Etch!"
+            case .grid: return "Tap on the grid to select a starting position"
+            case .control: return "Move the cursor by tapping adjacent cells or using the arrows below"
+            case .colour: return "Change your colour using the Colour Picker"
+            case .abstractMeter: return "Try changing the value of the Abstract Meter"
+            case .gallery: return "Check out the Gallery"
+            case .enjoy: return "Enjoy 😁"
+            case .done: return ""
+            }
+        }
+    }
+
+    // MARK: Properties
+
+    private let milestones: [Milestone] = [.welcome, .grid, .control, .colour, .abstractMeter, .gallery, .enjoy, .done]
+    private var currentIndex: Int = 0
+
+    // MARK: Initialization
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        buildUI()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // MARK: Public Methods
+
+    /// Returns true if the milestone was successfully met.
+    func milestoneReached(_ milestone: Milestone) -> Bool {
+        guard milestone == milestones[currentIndex],
+              currentIndex + 1 < milestones.count else { return false }
+
+        currentIndex = currentIndex + 1
+        let currentMilestone = milestones[currentIndex]
+        text = currentMilestone.text
+
+        return true
+    }
+
+    // MARK: Private Methods
+
+    private func buildUI() {
+        font = .systemFont(ofSize: 10)
+        textAlignment = .center
+        text = milestones[currentIndex].text
     }
 }
 
@@ -194,6 +292,8 @@ class GridView: UICollectionView {
 
     private var currentPosition: IndexPath?
     private var gridArray: [[UIColor]]
+
+    weak var onboardingDelegate: OnboardingDelegate?
 
     var pathMagnitude: Int = 1
 
@@ -284,6 +384,8 @@ class GridView: UICollectionView {
     private func selectCells(_ indexPaths: [IndexPath]) {
         guard let currentPos = currentPosition else { return }
 
+        onboardingDelegate?.didMeetMilestone(.control)
+
         /// Only use indexPaths within bounds of grid.
         let validIndexPaths: [IndexPath] = indexPaths.filter({ isValidIndex($0) })
 
@@ -336,6 +438,7 @@ extension GridView: UICollectionViewDelegate {
         guard let currentPos = currentPosition else {
             currentPosition = indexPath
             selectCells([indexPath])
+            onboardingDelegate?.didMeetMilestone(.grid)
             return
         }
 
@@ -360,24 +463,7 @@ class GridCell: UICollectionViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // MARK: Public Methods
-
-    func startBlinking() {
-        UIView.animate(withDuration: 0.5,
-                       delay: 0,
-                       options: [.curveEaseInOut, .autoreverse, .repeat, .allowUserInteraction]) {
-            self.alpha = 0.5
-        } completion: { _ in
-            self.alpha = 1
-        }
-    }
-
-    func stopBlinking() {
-        layer.removeAllAnimations()
-        alpha = 1
-    }
-
-    // MARK: Private Methods
+    // MARK: Methods
 
     private func buildUI() {
         layer.borderWidth = 0.5
@@ -936,13 +1022,23 @@ class ColourPickerView: UIStackView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // MARK: Methods
+    // MARK: Public Methods
+
+    func animateColourPicker() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.collectionView.setContentOffset(CGPoint(x: 20, y: 0), animated: true)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+            self.collectionView.setContentOffset(CGPoint(x: 0, y: 0), animated: true)
+        }
+    }
+
+    // MARK: Private Methods
 
     private func buildUI() {
         axis = .horizontal
         spacing = 8
-
-        paletteButton.addTarget(self, action: #selector(palettePressed), for: .touchUpInside)
 
         addArrangedSubview(paletteButton)
         addArrangedSubview(collectionView)
@@ -953,13 +1049,6 @@ class ColourPickerView: UIStackView {
             paletteButton.widthAnchor.constraint(equalToConstant: 32),
             paletteButton.heightAnchor.constraint(equalToConstant: 32)
         ])
-    }
-
-    // MARK: Actions
-
-    @objc
-    private func palettePressed() {
-        print(paletteButton.frame)
     }
 }
 
@@ -1255,6 +1344,23 @@ extension IndexPath {
 
     var left: IndexPath {
         IndexPath(row: row - 1, section: section)
+    }
+}
+
+extension UIView {
+    func startBlinking() {
+        UIView.animate(withDuration: 0.5,
+                       delay: 0,
+                       options: [.curveEaseInOut, .autoreverse, .repeat, .allowUserInteraction]) {
+            self.alpha = 0.5
+        } completion: { _ in
+            self.alpha = 1
+        }
+    }
+
+    func stopBlinking() {
+        layer.removeAllAnimations()
+        alpha = 1
     }
 }
 
